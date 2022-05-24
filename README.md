@@ -30,15 +30,41 @@ make
 * `/opt/cprocsp/bin/amd64/certmgr -export -dest cert.der` и вводим номер нужного сертификата в списке
 * `openssl x509 -inform DER -in cert.der -out cert.pem` - конвертируем из бинарного формата в привычный PEM
 
-## Пример использования
+## Примеры использования
 
-Подпись:
+Подпись PKCS-7 (вместо `openssl smime` можно также писать `openssl cms`):
 
-`openssl cms -sign -inkey private.key -in file.txt -CAfile CA.cer -signer signer.cer -engine gost -out file.txt.sgn -outform DER -noattr -binary`
+`openssl smime -sign
+    -in пример.pdf -out пример_подпись.p7s
+    -engine gost -binary -noattr -outform der
+    -signer cert.pem -inkey privkey.pem`
 
 Проверка подписи:
 
-`openssl cms -verify -content file.txt -in file.txt.sgn -CAfile CA.cer -signer signer.cer -engine gost -inform DER -noattr -binary`
+`openssl smime -verify
+    -content пример.pdf -in пример_подпись.p7s
+    -engine gost -binary -noattr -inform der
+    -CAfile CA.pem -signer cert.pem`
+
+## Ещё заметки
+
+Зашифровать приватный ключ:
+
+`openssl pkey -in privkey.pem -out privkey_enc.pem -aes256`
+
+Наоборот, импортировать приватный ключ PEM (openssl) в Крипто-Про - увы,
+можно только через PFX и утилиту p12util, скачать которую можно где-то на их форумах.
+Благо, под wine она тоже работает:
+
+`openssl pkcs12 -inkey privkey.pem -in cert.pem -keypbe gost89 -certpbe gost89 -macalg md_gost12_512 -export -out cert_and_key.pfx`
+
+`wine p12util.x86.exe -p12tocp -infile cert_and_key.pfx -rdrfolder Z:/var/opt/cprocsp/keys -contname Новое_Имя_Ключа -ex -passcp '' -passp12 ''`
+
+`/opt/cprocsp/bin/amd64/certmgr -install -container '\\.\HDIMAGE\Новое_Имя_Ключа'`
+
+Установить корневой сертификат (CA) в Криво-Про, чтобы оно не ругалось при подписи из браузерного плагина:
+
+`/opt/cprocsp/bin/amd64/certmgr -install -store root -file CA.crt`
 
 ## Идея вам на будущее
 
